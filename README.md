@@ -9,54 +9,42 @@
  ```
  git clone https://github.com/OpenVPN/easy-rsa.git 
  ```
- 2. Create Virtual Network
- ```bash
- Resource Group Name: rg-azure-aws
- Region: East-US
- VNet Name: vnet-azure
- VNet IPv4 Address Space: 10.1.0.0/16
- Subnet Name: subnet-01
- Subnet IPv4 Address Space: 10.1.0.0/24
-Add another subnet of Gatewaykind with IP range as 10.1.1.0/24
+ 2. Initialize Public Key Infrastructure (PKI)
+ ```
+ cd easy-rsa/easyrsa3
+ ./easyrsa init-pki
  ```
 
- 3. Create the VPN Gateway
- ```bash
- VPN Gateway Name: vpn-azure-aws
- Region: East-US
- Gateway Type: VPN
- SKU: VpnGw1
- Generation: Generation 1
- Virtual Network: vnet-azure
- Public IP Address: pip-vpn-azure-aws
- Public IP Address Type: Basic
- Assignment: Dynamic
- Enable active-active mode: Disabled
- Configure BGP: Disabled
+ 3. Build Certificate Authority
  ```
-### Configuring AWS
- 4. Create the Virtual Private Cloud (VPC) in AWS
- ```bash
- Name: my-vpc-01
- IPv4 CIDR: 10.0.0.0/16
+ ./easyrsa build-ca nopass
  ```
- 5. Create a subnet inside the VPC (Virtual Network)
- ```bash
- Name: my-subnet-01
- VPC Name: my-vpc-01
- VPC IPv4 CIDR: 10.0.0.0/16
- IPv4 CIDR: 10.0.0.0/24
+ 4. Build Server Certificate
  ```
- 6. Create a customer gateway pointing to the Public IP Address of Azure VPN Gateway
- ```bash
- IP address: Public IP Address of Azure VPN Gateway
- Rest keep everything as default
+ ./easyrsa build-server-full clientvpndemo.com nopass
  ```
- 7. Create the Virtual Private Gateway then attach to the VPC
- ```bash
- Name: vpg-aws-azure
+ 5. Build Client Certificate
  ```
- 8. Create a site-to-site VPN Connection
+ ./easyrsa build-client-full user.clientvpndemo.com nopass
+ ```
+ 6. Copy required certificates in to a single folder
+ ```
+ mkdir acm
+cp pki/ca.crt acm
+cp pki/issued/clientvpndemo.com.crt acm
+cp pki/issued/pdomala.clientvpndemo.com.crt acm
+cp pki/private/clientvpndemo.com.key acm
+cp pki/private/pdomala.clientvpndemo.com.key acm
+ ```
+ 7. Upload to AWS Certificate Manager (ACM
+ ```
+cd acm
+aws acm import-certificate --certificate fileb://clientvpndemo.com.crt --private-key fileb://clientvpndemo.com.key --certificate-chain fileb://ca.crt --region us-east-1
+aws acm import-certificate --certificate fileb://user.clientvpndemo.com.crt --private-key fileb://user.clientvpndemo.com.key --certificate-chain fileb://ca.crt --region us-east-1
+ ```
+
+### Create Client VPN Endpoint
+ 8. Create a Client VPN Endpoint Connection
  ```bash
  Name: vpn-aws-azure
  Target gateway type: Virtual private gateway (Select your Virtual private gateway created in 7)
